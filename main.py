@@ -32,6 +32,7 @@ class ProjectManagementApp(App):
         self.screen_manager.add_widget(self.project_list_screen)
         self.screen_manager.add_widget(self.project_search_screen)
 
+        self.screen_manager.current = "login"  # Start with the login screen
         return self.screen_manager
 
 

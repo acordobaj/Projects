@@ -3,6 +3,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.core.window import Window
 from controllers.user_controller import UserController
 
 
@@ -10,6 +11,9 @@ class LoginWindow(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.user_controller = UserController()
+
+        # Configurar tamaño de la ventana solo para la vista de login
+        Window.size = (400, 300)
 
         layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
 
@@ -31,7 +35,9 @@ class LoginWindow(Screen):
         password = self.password_input.text
         user = self.user_controller.login(username, password)
         if user:
-            self.manager.current = "main"
+            # Restaurar el tamaño de la ventana a su tamaño original
+            Window.size = (800, 600)
+            self.manager.current = "project_list"
             self.manager.get_screen("main").set_user(user)
         else:
             self.username_input.text = ""

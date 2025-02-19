@@ -1,6 +1,7 @@
 from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.uix.dropdown import DropDown
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
@@ -17,42 +18,66 @@ class MainWindow(Screen):
 
         layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
 
-        layout.add_widget(Label(text="Main Window"))
-        self.create_user_button = Button(
-            text="Create User", on_release=self.go_to_create_user
+        # Crear menús desplegables para User y Project
+        user_dropdown = DropDown()
+        self.create_user_button = Button(text="Create", size_hint_y=None, height=44)
+        self.modify_user_button = Button(text="Modify", size_hint_y=None, height=44)
+        self.delete_user_button = Button(text="Delete", size_hint_y=None, height=44)
+        user_dropdown.add_widget(self.create_user_button)
+        user_dropdown.add_widget(self.modify_user_button)
+        user_dropdown.add_widget(self.delete_user_button)
+
+        user_main_button = Button(text="User", size_hint=(None, None))
+        user_main_button.bind(on_release=user_dropdown.open)
+        user_dropdown.bind(
+            on_select=lambda instance, x: setattr(user_main_button, "text", x)
         )
-        self.modify_user_button = Button(
-            text="Modify User", on_release=self.go_to_modify_user
-        )
-        self.delete_user_button = Button(
-            text="Delete User", on_release=self.delete_user
-        )
-        self.create_project_button = Button(
-            text="Create Project", on_release=self.go_to_create_project
-        )
-        self.modify_project_button = Button(
-            text="Modify Project", on_release=self.go_to_modify_project
-        )
-        self.delete_project_button = Button(
-            text="Delete Project", on_release=self.delete_project
-        )
+
+        project_dropdown = DropDown()
+        self.create_project_button = Button(text="Create", size_hint_y=None, height=44)
+        self.modify_project_button = Button(text="Modify", size_hint_y=None, height=44)
+        self.delete_project_button = Button(text="Delete", size_hint_y=None, height=44)
         self.project_list_button = Button(
-            text="Project List by Date", on_release=self.go_to_project_list
+            text="List by Date", size_hint_y=None, height=44
         )
         self.project_search_button = Button(
-            text="Search Project by Consecutive", on_release=self.go_to_project_search
+            text="Consecutive", size_hint_y=None, height=44
+        )
+        project_dropdown.add_widget(self.create_project_button)
+        project_dropdown.add_widget(self.modify_project_button)
+        project_dropdown.add_widget(self.delete_project_button)
+        project_dropdown.add_widget(self.project_list_button)
+        project_dropdown.add_widget(self.project_search_button)
+
+        project_main_button = Button(text="Project", size_hint=(None, None))
+        project_main_button.bind(on_release=project_dropdown.open)
+        project_dropdown.bind(
+            on_select=lambda instance, x: setattr(project_main_button, "text", x)
         )
 
-        layout.add_widget(self.create_user_button)
-        layout.add_widget(self.modify_user_button)
-        layout.add_widget(self.delete_user_button)
-        layout.add_widget(self.create_project_button)
-        layout.add_widget(self.modify_project_button)
-        layout.add_widget(self.delete_project_button)
-        layout.add_widget(self.project_list_button)
-        layout.add_widget(self.project_search_button)
+        menu_layout = BoxLayout(
+            orientation="horizontal", padding=10, spacing=10, size_hint=(1, 0.1)
+        )
+        menu_layout.add_widget(user_main_button)
+        menu_layout.add_widget(project_main_button)
+
+        self.content_layout = BoxLayout(
+            orientation="vertical", padding=10, spacing=10, size_hint=(1, 0.9)
+        )
+
+        layout.add_widget(menu_layout)
+        layout.add_widget(self.content_layout)
 
         self.add_widget(layout)
+
+        self.create_user_button.bind(on_release=self.go_to_create_user)
+        self.modify_user_button.bind(on_release=self.go_to_modify_user)
+        self.delete_user_button.bind(on_release=self.delete_user)
+        self.create_project_button.bind(on_release=self.go_to_create_project)
+        self.modify_project_button.bind(on_release=self.go_to_modify_project)
+        self.delete_project_button.bind(on_release=self.delete_project)
+        self.project_list_button.bind(on_release=self.go_to_project_list)
+        self.project_search_button.bind(on_release=self.go_to_project_search)
 
     def set_user(self, user):
         self.user = user

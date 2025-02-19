@@ -28,19 +28,19 @@ projects.insert_many(
         {
             "consecutive": 1,
             "name": "Project1",
-            "status": "En progreso",
+            "description": "Description1",
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         },
         {
             "consecutive": 2,
             "name": "Project2",
-            "status": "Listo",
+            "description": "Description2",
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         },
         {
             "consecutive": 3,
             "name": "Project3",
-            "status": "Cancelado",
+            "description": "Description3",
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         },
     ]

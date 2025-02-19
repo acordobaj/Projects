@@ -3,6 +3,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
+from kivy.uix.scrollview import ScrollView
 from controllers.project_controller import ProjectController
 
 
@@ -11,7 +12,14 @@ class ProjectSearchWindow(Screen):
         super().__init__(**kwargs)
         self.project_controller = ProjectController()
 
-        self.layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
+        layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
+
+        menu_layout = BoxLayout(
+            orientation="horizontal", padding=10, spacing=10, size_hint=(1, 0.1)
+        )
+        content_layout = BoxLayout(
+            orientation="vertical", padding=10, spacing=10, size_hint=(1, 0.9)
+        )
 
         self.label_title = Label(text="Search Project by Consecutive")
         self.consecutive_input = TextInput(
@@ -22,24 +30,32 @@ class ProjectSearchWindow(Screen):
             text="Back to Main Menu", on_release=self.back_to_main_menu
         )
 
-        self.layout.add_widget(self.label_title)
-        self.layout.add_widget(self.consecutive_input)
-        self.layout.add_widget(self.search_button)
-        self.layout.add_widget(self.back_button)
+        menu_layout.add_widget(self.label_title)
+        menu_layout.add_widget(self.consecutive_input)
+        menu_layout.add_widget(self.search_button)
+        menu_layout.add_widget(self.back_button)
 
-        self.add_widget(self.layout)
+        self.layout_content = ScrollView()
+        self.content_layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
+        self.layout_content.add_widget(self.content_layout)
+
+        layout.add_widget(menu_layout)
+        layout.add_widget(self.layout_content)
+
+        self.add_widget(layout)
 
     def search_project(self, instance):
         consecutive = self.consecutive_input.text
         project = self.project_controller.get_project_by_consecutive(consecutive)
+        self.content_layout.clear_widgets()
         if project:
-            self.layout.add_widget(
-                Label(
-                    text=f"{project.consecutive} - {project.name} - {project.status} - {project.created_at}"
-                )
-            )
+            project_info = f"{project.consecutive} - {project.name} - {project.description} - {project.created_at}"
+            if project.file_links:
+                for file_link in project.file_links:
+                    project_info += f"\n   File: {file_link}"
+            self.content_layout.add_widget(Label(text=project_info))
         else:
-            self.layout.add_widget(Label(text="Project not found"))
+            self.content_layout.add_widget(Label(text="Project not found"))
 
     def back_to_main_menu(self, instance):
         self.manager.current = "main"
