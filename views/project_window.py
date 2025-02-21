@@ -1,51 +1,84 @@
-from kivy.uix.screenmanager import Screen
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.textinput import TextInput
-from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.popup import Popup
-from kivy.uix.spinner import Spinner
+from PyQt5.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QPushButton,
+    QLineEdit,
+    QTextEdit,
+    QComboBox,
+    QMessageBox,
+)
+from PyQt5.QtGui import QPalette, QColor, QFont
+from PyQt5.QtCore import Qt
 from controllers.project_controller import ProjectController
-from models.project import Project
-from datetime import datetime
 
 
-class ProjectWindow(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class ProjectWindow(QWidget):
+    def __init__(self, main_window, current_user):
+        super().__init__()
+        self.main_window = main_window
         self.project_controller = ProjectController()
+        self.current_user = current_user
+        self.initUI()
 
-        layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
+    def initUI(self):
+        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("Crear Proyecto")
 
-        self.name_input = TextInput(hint_text="Project Name", multiline=False)
-        self.status_input = Spinner(
-            text="Select Status", values=("Listo", "Cancelado", "En progreso")
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(0, 0, 128))  # Azul
+        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))  # Blanco
+        self.setAutoFillBackground(True)
+        self.setPalette(palette)
+
+        layout = QVBoxLayout()
+
+        label = QLabel("Crear Proyecto", self)
+        label.setFont(QFont("Arial", 20))
+        label.setStyleSheet("color: white;")
+        label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(label)
+
+        self.name_input = QLineEdit(self)
+        self.name_input.setPlaceholderText("Nombre del Proyecto")
+        self.name_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
         )
-        self.save_button = Button(text="Save", on_release=self.save_project)
-        self.back_button = Button(
-            text="Back to Main Menu", on_release=self.back_to_main_menu
+        layout.addWidget(self.name_input)
+
+        self.description_input = QTextEdit(self)
+        self.description_input.setPlaceholderText("Descripción del Proyecto")
+        self.description_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
         )
+        layout.addWidget(self.description_input)
 
-        layout.add_widget(Label(text="Create Project"))
-        layout.add_widget(self.name_input)
-        layout.add_widget(self.status_input)
-        layout.add_widget(self.save_button)
-        layout.add_widget(self.back_button)
+        self.status_input = QComboBox(self)
+        self.status_input.addItem("En Proceso")
+        self.status_input.addItem("Terminado")
+        self.status_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        layout.addWidget(self.status_input)
 
-        self.add_widget(layout)
+        button = QPushButton("Crear Proyecto", self)
+        button.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        button.clicked.connect(self.create_project)
+        layout.addWidget(button)
 
-    def save_project(self, instance):
-        name = self.name_input.text
-        status = self.status_input.text
-        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        new_project = Project(name=name, status=status, created_at=created_at)
-        self.project_controller.create_project(new_project)
-        Popup(
-            title="Success",
-            content=Label(text="Project created successfully"),
-            size_hint=(0.75, 0.5),
-        ).open()
-        self.manager.current = "main"
+        self.setLayout(layout)
 
-    def back_to_main_menu(self, instance):
-        self.manager.current = "main"
+    def create_project(self):
+        name = self.name_input.text()
+        description = self.description_input.toPlainText()
+        status = self.status_input.currentText()
+
+        if name and description:
+            self.project_controller.create_project(name, description, status)
+            QMessageBox.information(self, "Éxito", "Proyecto creado exitosamente")
+            self.main_window.project_list_screen.refresh_project_list()
+            self.main_window.switch_screen(self.main_window.project_list_screen)
+        else:
+            QMessageBox.warning(self, "Error", "Todos los campos son obligatorios")

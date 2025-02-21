@@ -1,50 +1,82 @@
-from kivy.uix.screenmanager import Screen
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.textinput import TextInput
-from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.popup import Popup
-from kivy.uix.spinner import Spinner
+from PyQt5.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QComboBox,
+    QMessageBox,
+)
+from PyQt5.QtGui import QPalette, QColor, QFont
+from PyQt5.QtCore import Qt
 from controllers.user_controller import UserController
 
 
-class UserWindow(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class UserWindow(QWidget):
+    def __init__(self, main_window, current_user):
+        super().__init__()
+        self.main_window = main_window
+        self.current_user = current_user
         self.user_controller = UserController()
+        self.initUI()
 
-        layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
+    def initUI(self):
+        self.setGeometry(100, 100, 400, 300)
+        self.setWindowTitle("Crear Usuario")
 
-        self.username_input = TextInput(hint_text="Username", multiline=False)
-        self.password_input = TextInput(
-            hint_text="Password", password=True, multiline=False
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(0, 0, 128))  # Azul
+        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))  # Blanco
+        self.setAutoFillBackground(True)
+        self.setPalette(palette)
+
+        layout = QVBoxLayout()
+
+        label = QLabel("Crear Usuario", self)
+        label.setFont(QFont("Arial", 20))
+        label.setStyleSheet("color: white;")
+        label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(label)
+
+        self.username_input = QLineEdit(self)
+        self.username_input.setPlaceholderText("Nombre de Usuario")
+        self.username_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
         )
-        self.role_input = Spinner(
-            text="Select Role", values=("basic", "media", "admin")
+        layout.addWidget(self.username_input)
+
+        self.password_input = QLineEdit(self)
+        self.password_input.setPlaceholderText("Contraseña")
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
         )
-        self.create_button = Button(text="Create User", on_release=self.create_user)
-        self.back_button = Button(text="Back", on_release=self.go_back)
+        layout.addWidget(self.password_input)
 
-        layout.add_widget(Label(text="Create User"))
-        layout.add_widget(self.username_input)
-        layout.add_widget(self.password_input)
-        layout.add_widget(self.role_input)
-        layout.add_widget(self.create_button)
-        layout.add_widget(self.back_button)
+        self.role_input = QComboBox(self)
+        self.role_input.addItems(["Básica", "Media", "Admin"])
+        self.role_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        layout.addWidget(self.role_input)
 
-        self.add_widget(layout)
+        create_button = QPushButton("Crear Usuario", self)
+        create_button.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        create_button.clicked.connect(self.create_user)
+        layout.addWidget(create_button)
 
-    def create_user(self, instance):
-        username = self.username_input.text
-        password = self.password_input.text
-        role = self.role_input.text
-        self.user_controller.create_user(username, password, role)
-        Popup(
-            title="Success",
-            content=Label(text="User created successfully"),
-            size_hint=(0.75, 0.5),
-        ).open()
-        self.manager.current = "main"
+        self.setLayout(layout)
 
-    def go_back(self, instance):
-        self.manager.current = "main"
+    def create_user(self):
+        username = self.username_input.text()
+        password = self.password_input.text()
+        role = self.role_input.currentText()
+
+        if username and password:
+            self.user_controller.create_user(username, password, role)
+            QMessageBox.information(self, "Éxito", "Usuario creado exitosamente")
+            self.main_window.switch_screen(self.main_window.user_list_screen)
+        else:
+            QMessageBox.warning(self, "Error", "Todos los campos son obligatorios")

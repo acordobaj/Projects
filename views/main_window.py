@@ -1,151 +1,83 @@
-from kivy.uix.screenmanager import Screen
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.dropdown import DropDown
-from kivy.uix.label import Label
-from kivy.uix.textinput import TextInput
-from kivy.uix.popup import Popup
-from controllers.project_controller import ProjectController
-from controllers.user_controller import UserController
+from PyQt5.QtWidgets import QMainWindow, QAction, QMenuBar
+from views.user_list_window import UserListWindow
+from views.project_list_window import ProjectListWindow
+from views.project_window import ProjectWindow
+from views.login_window import LoginWindow
+from views.user_window import UserWindow
 
 
-class MainWindow(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.project_controller = ProjectController()
-        self.user_controller = UserController()
-        self.user = None
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.current_user = None
+        self.project_list_screen = None
+        self.user_list_screen = None
+        self.create_project_screen = None
+        self.create_user_screen = None
+        self.initUI()
 
-        layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
+    def initUI(self):
+        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("Main Window")
+        self.create_menu()
 
-        # Crear menús desplegables para User y Project
-        user_dropdown = DropDown()
-        self.create_user_button = Button(text="Create", size_hint_y=None, height=44)
-        self.modify_user_button = Button(text="Modify", size_hint_y=None, height=44)
-        self.delete_user_button = Button(text="Delete", size_hint_y=None, height=44)
-        user_dropdown.add_widget(self.create_user_button)
-        user_dropdown.add_widget(self.modify_user_button)
-        user_dropdown.add_widget(self.delete_user_button)
+    def show_login_window(self):
+        self.login_window = LoginWindow(self)
+        self.login_window.show()
+        self.hide()  # Oculta la ventana principal hasta que el usuario inicie sesión
 
-        user_main_button = Button(text="User", size_hint=(None, None))
-        user_main_button.bind(on_release=user_dropdown.open)
-        user_dropdown.bind(
-            on_select=lambda instance, x: setattr(user_main_button, "text", x)
+    def show_main_window(self):
+        self.project_list_screen = ProjectListWindow(self, self.current_user)
+        self.user_list_screen = UserListWindow(self, self.current_user)
+        self.create_project_screen = ProjectWindow(self, self.current_user)
+        self.create_user_screen = UserWindow(self, self.current_user)
+        self.switch_screen(self.project_list_screen)
+        self.show()  # Muestra la ventana principal después de iniciar sesión
+
+    def create_menu(self):
+        menubar = self.menuBar()
+
+        # Menú de Usuarios
+        userMenu = menubar.addMenu("Usuarios")
+        user_list_action = QAction("Lista de Usuarios", self)
+        user_list_action.triggered.connect(
+            lambda: self.switch_screen(self.user_list_screen)
         )
+        userMenu.addAction(user_list_action)
 
-        project_dropdown = DropDown()
-        self.create_project_button = Button(text="Create", size_hint_y=None, height=44)
-        self.modify_project_button = Button(text="Modify", size_hint_y=None, height=44)
-        self.delete_project_button = Button(text="Delete", size_hint_y=None, height=44)
-        self.project_list_button = Button(
-            text="List by Date", size_hint_y=None, height=44
+        create_user_action = QAction("Crear Usuario", self)
+        create_user_action.triggered.connect(
+            lambda: self.switch_screen(self.create_user_screen)
         )
-        self.project_search_button = Button(
-            text="Consecutive", size_hint_y=None, height=44
+        userMenu.addAction(create_user_action)
+
+        # Menú de Proyectos
+        projectMenu = menubar.addMenu("Proyectos")
+        project_list_action = QAction("Lista de Proyectos", self)
+        project_list_action.triggered.connect(
+            lambda: self.switch_screen(self.project_list_screen)
         )
-        project_dropdown.add_widget(self.create_project_button)
-        project_dropdown.add_widget(self.modify_project_button)
-        project_dropdown.add_widget(self.delete_project_button)
-        project_dropdown.add_widget(self.project_list_button)
-        project_dropdown.add_widget(self.project_search_button)
+        projectMenu.addAction(project_list_action)
 
-        project_main_button = Button(text="Project", size_hint=(None, None))
-        project_main_button.bind(on_release=project_dropdown.open)
-        project_dropdown.bind(
-            on_select=lambda instance, x: setattr(project_main_button, "text", x)
+        create_project_action = QAction("Crear Proyecto", self)
+        create_project_action.triggered.connect(
+            lambda: self.switch_screen(self.create_project_screen)
         )
+        projectMenu.addAction(create_project_action)
 
-        menu_layout = BoxLayout(
-            orientation="horizontal", padding=10, spacing=10, size_hint=(1, 0.1)
-        )
-        menu_layout.add_widget(user_main_button)
-        menu_layout.add_widget(project_main_button)
+        # Menú de Archivo
+        fileMenu = menubar.addMenu("Archivo")
+        logout_action = QAction("Cerrar sesión", self)
+        logout_action.triggered.connect(self.logout)
+        fileMenu.addAction(logout_action)
 
-        self.content_layout = BoxLayout(
-            orientation="vertical", padding=10, spacing=10, size_hint=(1, 0.9)
-        )
+        exit_action = QAction("Salir", self)
+        exit_action.triggered.connect(self.close)
+        fileMenu.addAction(exit_action)
 
-        layout.add_widget(menu_layout)
-        layout.add_widget(self.content_layout)
+    def switch_screen(self, screen):
+        self.setCentralWidget(screen)
 
-        self.add_widget(layout)
-
-        self.create_user_button.bind(on_release=self.go_to_create_user)
-        self.modify_user_button.bind(on_release=self.go_to_modify_user)
-        self.delete_user_button.bind(on_release=self.delete_user)
-        self.create_project_button.bind(on_release=self.go_to_create_project)
-        self.modify_project_button.bind(on_release=self.go_to_modify_project)
-        self.delete_project_button.bind(on_release=self.delete_project)
-        self.project_list_button.bind(on_release=self.go_to_project_list)
-        self.project_search_button.bind(on_release=self.go_to_project_search)
-
-    def set_user(self, user):
-        self.user = user
-        if self.user.role != "admin":
-            self.create_user_button.disabled = True
-            self.modify_user_button.disabled = True
-            self.delete_user_button.disabled = True
-
-    def go_to_create_user(self, instance):
-        self.manager.current = "user"
-
-    def go_to_modify_user(self, instance):
-        self.manager.current = "modify_user"
-
-    def delete_user(self, instance):
-        username_input = TextInput(hint_text="Username", multiline=False)
-        popup_layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
-        popup_layout.add_widget(username_input)
-        popup_layout.add_widget(
-            Button(
-                text="Delete",
-                on_release=lambda x: self.confirm_delete_user(username_input.text),
-            )
-        )
-        popup = Popup(title="Delete User", content=popup_layout, size_hint=(0.75, 0.5))
-        popup.open()
-
-    def confirm_delete_user(self, username):
-        self.user_controller.delete_user(username)
-        Popup(
-            title="Success",
-            content=Label(text="User deleted successfully"),
-            size_hint=(0.75, 0.5),
-        ).open()
-
-    def go_to_create_project(self, instance):
-        self.manager.current = "project"
-
-    def go_to_modify_project(self, instance):
-        self.manager.current = "modify_project"
-
-    def delete_project(self, instance):
-        project_name_input = TextInput(hint_text="Project Name", multiline=False)
-        popup_layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
-        popup_layout.add_widget(project_name_input)
-        popup_layout.add_widget(
-            Button(
-                text="Delete",
-                on_release=lambda x: self.confirm_delete_project(
-                    project_name_input.text
-                ),
-            )
-        )
-        popup = Popup(
-            title="Delete Project", content=popup_layout, size_hint=(0.75, 0.5)
-        )
-        popup.open()
-
-    def confirm_delete_project(self, project_name):
-        self.project_controller.delete_project(project_name)
-        Popup(
-            title="Success",
-            content=Label(text="Project deleted successfully"),
-            size_hint=(0.75, 0.5),
-        ).open()
-
-    def go_to_project_list(self, instance):
-        self.manager.current = "project_list"
-
-    def go_to_project_search(self, instance):
-        self.manager.current = "project_search"
+    def logout(self):
+        self.current_user = None
+        self.show_login_window()

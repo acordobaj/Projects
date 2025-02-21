@@ -1,106 +1,176 @@
-from kivy.uix.screenmanager import Screen
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
-from kivy.uix.button import Button
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.popup import Popup
-from kivy.uix.filechooser import FileChooserIconView
+from PyQt5.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QPushButton,
+    QLineEdit,
+    QComboBox,
+    QMessageBox,
+    QHBoxLayout,
+    QHeaderView,
+    QSpacerItem,
+    QSizePolicy,
+)
+from PyQt5.QtGui import QPalette, QColor, QFont
+from PyQt5.QtCore import Qt
 from controllers.project_controller import ProjectController
-import webbrowser
 import os
 
 
-class ProjectListWindow(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class ProjectListWindow(QWidget):
+    def __init__(self, main_window, current_user):
+        super().__init__()
+        self.main_window = main_window
         self.project_controller = ProjectController()
+        self.current_user = current_user
+        self.initUI()
 
-        layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
+    def initUI(self):
+        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("Lista de Proyectos")
 
-        menu_layout = BoxLayout(
-            orientation="horizontal", padding=10, spacing=10, size_hint=(1, 0.1)
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(0, 0, 128))  # Azul
+        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))  # Blanco
+        self.setAutoFillBackground(True)
+        self.setPalette(palette)
+
+        layout = QVBoxLayout()
+
+        label = QLabel("Lista de Proyectos", self)
+        label.setFont(QFont("Arial", 20))
+        label.setStyleSheet("color: white;")
+        label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(label)
+
+        # Añadimos un espaciador para bajar la tabla un poco
+        layout.addSpacerItem(
+            QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Minimum)
         )
-        content_layout = BoxLayout(
-            orientation="vertical", padding=10, spacing=10, size_hint=(1, 0.9)
+
+        # Filtros de búsqueda
+        filter_layout = QHBoxLayout()
+        self.name_filter_input = QLineEdit(self)
+        self.name_filter_input.setPlaceholderText("Buscar por nombre de proyecto")
+        self.name_filter_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        filter_layout.addWidget(self.name_filter_input)
+
+        self.month_filter_input = QComboBox(self)
+        self.month_filter_input.addItem("Seleccionar mes de alta")
+        for month in range(1, 13):
+            self.month_filter_input.addItem(str(month))
+        self.month_filter_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        filter_layout.addWidget(self.month_filter_input)
+
+        filter_button = QPushButton("Aplicar Filtros", self)
+        filter_button.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        filter_button.clicked.connect(self.apply_filters)
+        filter_layout.addWidget(filter_button)
+
+        layout.addLayout(filter_layout)
+
+        self.project_table = QTableWidget(self)
+        self.project_table.setColumnCount(7)
+        self.project_table.setHorizontalHeaderLabels(
+            [
+                "Consecutivo",
+                "Nombre",
+                "Descripción",
+                "Archivo(s)",
+                "Estatus",
+                "Abrir Archivo",
+                "Acciones",
+            ]
+        )
+        self.project_table.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
         )
 
-        self.label_title = Label(text="Project List by Date")
-        self.refresh_button = Button(text="Refresh List", on_release=self.refresh_list)
-        self.back_button = Button(
-            text="Back to Main Menu", on_release=self.back_to_main_menu
+        header = self.project_table.horizontalHeader()
+        header.setStyleSheet(
+            "::section { background-color: #000080; color: white; padding: 5px; }"
         )
+        header.setFont(QFont("Arial", 10, QFont.Bold))
+        header.setSectionResizeMode(
+            QHeaderView.Stretch
+        )  # Para hacer que los encabezados se ajusten al contenido
 
-        menu_layout.add_widget(self.label_title)
-        menu_layout.add_widget(self.refresh_button)
-        menu_layout.add_widget(self.back_button)
+        layout.addWidget(self.project_table)
+        self.setLayout(layout)
 
-        self.layout_content = ScrollView()
-        self.content_layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
-        self.layout_content.add_widget(self.content_layout)
+        self.refresh_project_list()
 
-        layout.add_widget(menu_layout)
-        layout.add_widget(self.layout_content)
+    def refresh_project_list(self):
+        projects = self.project_controller.get_projects()
+        self.update_project_table(projects)
 
-        self.add_widget(layout)
+    def apply_filters(self):
+        name_filter = self.name_filter_input.text()
+        month_filter = self.month_filter_input.currentText()
+        month_filter = int(month_filter) if month_filter.isdigit() else None
 
-    def refresh_list(self, instance):
-        # Actualizar la base de datos con los enlaces de archivos
-        self.project_controller.update_all_projects_with_files()
+        projects = self.project_controller.filter_projects(name_filter, month_filter)
+        self.update_project_table(projects)
 
-        projects = self.project_controller.get_all_projects_sorted_by_date()
-        self.content_layout.clear_widgets()
-        for project in projects:
-            project_info = f"{project['consecutive']} - {project['name']} - {project.get('description', 'N/A')} - {project['created_at']}"
-            file_link = project.get("files", "Sin archivo")
-            project_info += f"\n   File: {file_link}"
-            project_label = Label(text=project_info)
+    def update_project_table(self, projects):
+        self.project_table.setRowCount(len(projects))
 
-            project_box = BoxLayout(
-                orientation="vertical",
-                size_hint_y=None,
-                height=project_label.texture_size[1] + 20,
+        for row, project in enumerate(projects):
+            self.project_table.setItem(
+                row, 0, QTableWidgetItem(str(project.consecutive))
             )
-            project_box.add_widget(project_label)
+            self.project_table.setItem(row, 1, QTableWidgetItem(project.name))
+            self.project_table.setItem(row, 2, QTableWidgetItem(project.description))
+            self.project_table.setItem(row, 3, QTableWidgetItem(project.files))
+            self.project_table.setItem(row, 4, QTableWidgetItem(project.status))
 
-            if file_link != "Sin archivo":
-                open_file_button = Button(
-                    text="Open File",
-                    size_hint=(None, None),
-                    size=(100, 40),
-                    on_release=lambda instance, file_link=file_link: self.open_file(
-                        file_link
-                    ),
+            if project.files != "Sin archivo":
+                button = QPushButton("Abrir")
+                button.setStyleSheet(
+                    "background-color: white; color: black; margin-bottom: 10px;"
                 )
-                project_box.height += open_file_button.height + 10
-                project_box.add_widget(open_file_button)
-
-            self.content_layout.add_widget(project_box)
-
-    def back_to_main_menu(self, instance):
-        self.manager.current = "main"
-
-    def open_file(self, file_link):
-        if file_link != "Sin archivo":
-            file_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "project_files",
-                file_link,
-            )
-            if os.path.exists(file_path):
-                webbrowser.open(f"file://{file_path}")
+                button.clicked.connect(
+                    lambda chk, file_path=project.files: self.open_file(file_path)
+                )
+                self.project_table.setCellWidget(row, 5, button)
             else:
-                popup = Popup(
-                    title="Error",
-                    content=Label(text="File not found."),
-                    size_hint=(None, None),
-                    size=(400, 200),
+                self.project_table.setItem(row, 5, QTableWidgetItem(""))
+
+            if self.current_user.role in ["Media", "Admin"]:
+                delete_button = QPushButton("Eliminar")
+                delete_button.setStyleSheet("background-color: red; color: white;")
+                delete_button.clicked.connect(
+                    lambda chk, consecutive=project.consecutive: self.delete_project(
+                        consecutive
+                    )
                 )
-                popup.open()
+                self.project_table.setCellWidget(row, 6, delete_button)
+
+    def open_file(self, file_name):
+        file_path = os.path.join("project_files", file_name)
+        if os.path.exists(file_path):
+            os.startfile(
+                file_path
+            )  # Esto abrirá el archivo en su aplicación predeterminada
         else:
-            popup = Popup(
-                title="Error",
-                content=Label(text="No file associated with this project."),
-                size_hint=(None, None),
-                size=(400, 200),
-            )
-            popup.open()
+            QMessageBox.warning(self, "Error", "El archivo no existe")
+
+    def delete_project(self, consecutive):
+        reply = QMessageBox.question(
+            self,
+            "Confirmar eliminación",
+            f"¿Está seguro de que desea eliminar el proyecto con consecutivo '{consecutive}'?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self.project_controller.delete_project(consecutive)
+            self.refresh_project_list()

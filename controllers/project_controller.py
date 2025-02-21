@@ -1,66 +1,64 @@
 import os
+from datetime import datetime
 from database.db_manager import DBManager
 from models.project import Project
-from datetime import datetime
 
 
 class ProjectController:
     def __init__(self):
         self.db_manager = DBManager()
         self.projects_collection = self.db_manager.get_collection("projects")
-        # Ajustar la ruta a la carpeta project_files desde la raíz del proyecto
-        self.files_directory = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "project_files"
-        )
+        self.project_files_path = "project_files"
 
-    def create_project(self, project):
-        project.consecutive = self.get_next_consecutive()
-        if not hasattr(project, "created_at"):
-            project.created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        project.files = self.get_file_for_project(project.consecutive)
-        self.projects_collection.insert_one(project.to_dict())
+    def create_project(self, name, description, status):
+        # Obtener el siguiente número consecutivo
+        last_project = self.projects_collection.find_one(sort=[("consecutive", -1)])
+        next_consecutive = last_project["consecutive"] + 1 if last_project else 1
 
-    def update_project(self, project, name, description):
-        files = self.get_file_for_project(project.consecutive)
-        self.projects_collection.update_one(
-            {"consecutive": project.consecutive},
-            {"$set": {"name": name, "description": description, "files": files}},
-        )
+        # Verificar si el archivo existe
+        file_name = f"{next_consecutive}_proyecto.pdf"
+        file_path = os.path.join(self.project_files_path, file_name)
+        files = file_name if os.path.exists(file_path) else "Sin archivo"
 
-    def get_project_by_consecutive(self, consecutive):
-        project_data = self.projects_collection.find_one(
-            {"consecutive": int(consecutive)}
+        # Crear el proyecto con la fecha de creación actual
+        new_project = Project(
+            next_consecutive, name, description, files, datetime.utcnow(), status
         )
-        if project_data:
-            return Project.from_dict(project_data)
-        return None
+        self.projects_collection.insert_one(new_project.to_dict())
+
+    def get_projects(self):
+        projects = list(self.projects_collection.find())
+        updated_projects = []
+        for project in projects:
+            updated_project = self.check_and_update_file(project)
+            updated_projects.append(updated_project)
+        return [Project.from_dict(project) for project in updated_projects]
+
+    def check_and_update_file(self, project):
+        file_name = f"{project['consecutive']}_proyecto.pdf"
+        file_path = os.path.join(self.project_files_path, file_name)
+        if os.path.exists(file_path):
+            if project["files"] == "Sin archivo":
+                self.projects_collection.update_one(
+                    {"consecutive": project["consecutive"]},
+                    {"$set": {"files": file_name}},
+                )
+                project["files"] = file_name
+        return project
+
+    def filter_projects(self, name_filter=None, month_filter=None):
+        query = {}
+        if name_filter:
+            query["name"] = {"$regex": name_filter, "$options": "i"}
+        if month_filter:
+            query["$expr"] = {"$eq": [{"$month": "$created_at"}, month_filter]}
+
+        projects = list(self.projects_collection.find(query))
+        updated_projects = []
+        for project in projects:
+            updated_project = self.check_and_update_file(project)
+            updated_projects.append(updated_project)
+        return [Project.from_dict(project) for project in updated_projects]
 
     def delete_project(self, consecutive):
-        self.projects_collection.delete_one({"consecutive": int(consecutive)})
-
-    def get_all_projects_sorted_by_date(self):
-        all_projects = self.projects_collection.find()
-        sorted_projects = sorted(
-            all_projects,
-            key=lambda x: datetime.strptime(x["created_at"], "%Y-%m-%d %H:%M:%S"),
-        )
-        return sorted_projects
-
-    def get_next_consecutive(self):
-        last_project = self.projects_collection.find_one(sort=[("consecutive", -1)])
-        return last_project["consecutive"] + 1 if last_project else 1
-
-    def get_file_for_project(self, consecutive):
-        for file_name in os.listdir(self.files_directory):
-            if str(consecutive) in file_name:
-                return file_name
-        return "Sin archivo"
-
-    def update_all_projects_with_files(self):
-        all_projects = self.projects_collection.find()
-        for project_data in all_projects:
-            consecutive = project_data["consecutive"]
-            files = self.get_file_for_project(consecutive)
-            self.projects_collection.update_one(
-                {"consecutive": consecutive}, {"$set": {"files": files}}
-            )
+        self.projects_collection.delete_one({"consecutive": consecutive})

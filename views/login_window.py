@@ -1,46 +1,75 @@
-from kivy.uix.screenmanager import Screen
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.textinput import TextInput
-from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.core.window import Window
+from PyQt5.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QMessageBox,
+)
+from PyQt5.QtGui import QPalette, QColor, QFont
+from PyQt5.QtCore import Qt
 from controllers.user_controller import UserController
 
 
-class LoginWindow(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class LoginWindow(QWidget):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
         self.user_controller = UserController()
+        self.initUI()
 
-        # Configurar tamaño de la ventana solo para la vista de login
-        Window.size = (400, 300)
+    def initUI(self):
+        self.setGeometry(100, 100, 400, 300)
+        self.setWindowTitle("Inicio de Sesión")
 
-        layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(0, 0, 128))  # Azul
+        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))  # Blanco
+        self.setAutoFillBackground(True)
+        self.setPalette(palette)
 
-        self.username_input = TextInput(hint_text="Username", multiline=False)
-        self.password_input = TextInput(
-            hint_text="Password", password=True, multiline=False
+        layout = QVBoxLayout()
+
+        label = QLabel("Inicio de Sesión", self)
+        label.setFont(QFont("Arial", 20))
+        label.setStyleSheet("color: white;")
+        label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(label)
+
+        self.username_input = QLineEdit(self)
+        self.username_input.setPlaceholderText("Nombre de Usuario")
+        self.username_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
         )
-        self.login_button = Button(text="Login", on_release=self.login)
+        layout.addWidget(self.username_input)
 
-        layout.add_widget(Label(text="Login"))
-        layout.add_widget(self.username_input)
-        layout.add_widget(self.password_input)
-        layout.add_widget(self.login_button)
+        self.password_input = QLineEdit(self)
+        self.password_input.setPlaceholderText("Contraseña")
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        layout.addWidget(self.password_input)
 
-        self.add_widget(layout)
+        login_button = QPushButton("Iniciar Sesión", self)
+        login_button.setStyleSheet(
+            "background-color: white; color: black; margin-bottom: 10px;"
+        )
+        login_button.clicked.connect(self.login)
+        layout.addWidget(login_button)
 
-    def login(self, instance):
-        username = self.username_input.text
-        password = self.password_input.text
+        self.setLayout(layout)
+
+    def login(self):
+        username = self.username_input.text()
+        password = self.password_input.text()
         user = self.user_controller.login(username, password)
+
         if user:
-            # Restaurar el tamaño de la ventana a su tamaño original
-            Window.size = (800, 600)
-            self.manager.current = "project_list"
-            self.manager.get_screen("main").set_user(user)
+            self.main_window.current_user = user
+            self.main_window.show_main_window()
+            self.close()
         else:
-            self.username_input.text = ""
-            self.password_input.text = ""
-            self.username_input.hint_text = "Invalid credentials"
-            self.password_input.hint_text = ""
+            QMessageBox.warning(
+                self, "Error", "Nombre de usuario o contraseña incorrectos"
+            )

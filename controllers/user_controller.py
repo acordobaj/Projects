@@ -36,3 +36,7 @@ class UserController:
 
     def delete_user(self, username):
         self.users_collection.delete_one({"username": username})
+
+    def get_users(self):
+        users = list(self.users_collection.find())
+        return [User.from_dict(user) for user in users]
